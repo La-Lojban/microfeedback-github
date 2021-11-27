@@ -145,11 +145,9 @@ const GitHubBackend = async ({input, perspective, akismet}, req) => {
   const {body, extra, screenshotURL} = input;
   try {
     const {data} = await axios({
+      headers: {"Authorization" : `token ${GH_TOKEN}`},
       method: 'POST',
       url: issueURL,
-      params: {
-        access_token: GH_TOKEN,
-      },
       data: makeIssue({
         body,
         extra,
