@@ -7,6 +7,10 @@
       "description": "GitHub API token associate with your feedback bot's account",
       "required": true
     },
+    "REPO": {
+      "description": "Repo to which the issues will be posted, in the form owner/repo",
+      "required": true
+    },
     "ALLOWED_REPOS": {
       "description": "Comma-separated list of GitHub repos that may be posted to. If '*', allow posting to any repo.",
       "required": false,

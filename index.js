@@ -1,6 +1,4 @@
 const assert = require('assert');
-const url = require('url');
-
 const parseUserAgent = require('ua-parser-js');
 const truncate = require('truncate');
 const table = require('markdown-table');
@@ -8,10 +6,9 @@ const axios = require('axios');
 const mustache = require('mustache');
 const { createError } = require('micro');
 const microfeedback = require('microfeedback-core');
-const trim = require('lodash.trim');
 const pkg = require('./package.json');
 
-const { GH_TOKEN } = process.env;
+const { GH_TOKEN, REPO } = process.env;
 assert(GH_TOKEN, 'GH_TOKEN not set');
 
 const HEADER_WHITELIST = ['user-agent', 'origin', 'referer'];
@@ -74,10 +71,6 @@ const issueTemplate = `
 {{/extraTable}}
 
 </p></details>
-
-----------
-
-Reported via *[{{pkg.name}}]({{&pkg.repository}}) v{{pkg.version}}*.
 `;
 mustache.parse(issueTemplate);
 
@@ -93,10 +86,10 @@ const makeIssue = ({ body, extra, perspective, screenshotURL }, req) => {
         screenshotURL,
         pkg,
     };
-    const title = `[microfeedback] New feedback${suffix}: "${truncate(
+    const title = `${truncate(
         body,
         25
-    )}"`;
+    )}`;
     // Format headers as table
     if (req && req.headers) {
         const entries = Object.entries(req.headers).filter(
@@ -161,18 +154,20 @@ async function checkIfTitleExists({ repo, body, token }) {
     return []
 }
 
-const GitHubBackend = async ({ input, perspective, akismet }, req) => {
+const GitHubBackend = async ({ input, perspective, akismet }, req) => {    
     // Match /<username>/<repo>/ in the URL
     // TODO: Allow base64-encoded repo URL
-    const { pathname } = url.parse(req.url);
+    // const { pathname } = url.parse(req.url);
     // Trim trailing slashes to get GitHub repo
-    const repo = trim(pathname, '/');
+    const repo = REPO//trim(pathname, '/');
+    console.log(repo);
+    
     const allowedRepos = getAllowedRepos();
     if (allowedRepos !== '*' && allowedRepos.indexOf(repo) === -1) {
         throw createError(400, `Repo "${repo}" not allowed.`);
     }
     const issueURL = `https://api.github.com/repos/${repo}/issues`;
-    const { body, extra, screenshotURL } = input;
+    const { body, extra, screenshotURL } = input;    
     const issuesThatAlreadyExist = await checkIfTitleExists({ repo, body, token: GH_TOKEN })
     // if (issuesThatAlreadyExist.length === 0) {
     try {
@@ -190,7 +185,9 @@ const GitHubBackend = async ({ input, perspective, akismet }, req) => {
         });
         return data;
     } catch (err) {
+        
         const { status, data } = err.response;
+        console.log({repo,data});
         throw createError(status, data.message, err);
     }
     // }else {
