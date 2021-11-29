@@ -74,7 +74,7 @@ const issueTemplate = `
 `;
 mustache.parse(issueTemplate);
 
-const makeIssue = ({ body, extra, perspective, screenshotURL }, req) => {
+const makeIssue = ({ body, title, extra, perspective, screenshotURL }, req) => {
     let suffix = '';
     if (req && req.headers.referer) {
         suffix = ` on ${req.headers.referer}`;
@@ -86,7 +86,7 @@ const makeIssue = ({ body, extra, perspective, screenshotURL }, req) => {
         screenshotURL,
         pkg,
     };
-    const title = `${truncate(
+    const title = title || `${truncate(
         body,
         25
     )}`;
@@ -160,14 +160,13 @@ const GitHubBackend = async ({ input, perspective, akismet }, req) => {
     // const { pathname } = url.parse(req.url);
     // Trim trailing slashes to get GitHub repo
     const repo = REPO//trim(pathname, '/');
-    console.log(repo);
     
     const allowedRepos = getAllowedRepos();
     if (allowedRepos !== '*' && allowedRepos.indexOf(repo) === -1) {
         throw createError(400, `Repo "${repo}" not allowed.`);
     }
     const issueURL = `https://api.github.com/repos/${repo}/issues`;
-    const { body, extra, screenshotURL } = input;    
+    const { body, title, extra, screenshotURL } = input;    
     const issuesThatAlreadyExist = await checkIfTitleExists({ repo, body, token: GH_TOKEN })
     // if (issuesThatAlreadyExist.length === 0) {
     try {
@@ -177,6 +176,7 @@ const GitHubBackend = async ({ input, perspective, akismet }, req) => {
             url: issueURL,
             data: makeIssue({
                 body,
+                title,
                 extra,
                 screenshotURL,
                 perspective,
