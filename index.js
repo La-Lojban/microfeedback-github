@@ -86,7 +86,7 @@ const makeIssue = ({ body, title, extra, perspective, screenshotURL }, req) => {
         screenshotURL,
         pkg,
     };
-    const title = title || `${truncate(
+    title = title || `${truncate(
         body,
         25
     )}`;
