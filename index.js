@@ -26,10 +26,6 @@ const makeTable = (headers, entries, sort = true) => {
 };
 
 const issueTemplate = `
-:bulb: New feedback was posted{{suffix}}
-
-## Feedback
-
 {{body}}
 
 {{#screenshotURL}}
@@ -86,10 +82,6 @@ const makeIssue = ({ body, title, extra, perspective, screenshotURL }, req) => {
         screenshotURL,
         pkg,
     };
-    title = title || `${truncate(
-        body,
-        25
-    )}`;
     // Format headers as table
     if (req && req.headers) {
         const entries = Object.entries(req.headers).filter(
@@ -124,8 +116,7 @@ function getAllowedRepos() {
     return process.env.ALLOWED_REPOS.split(',').map(each => each.trim());
 }
 
-async function checkIfTitleExists({ repo, body, token }) {
-    const title = body.title
+async function checkIfTitleExists({ repo, body, title, token }) {
     const githubUrl = 'https://api.github.com/graphql'
     // Your personal access token
     // The Authorization in the header of the request
@@ -148,27 +139,35 @@ async function checkIfTitleExists({ repo, body, token }) {
 
     // Post request, axios.post() return a Promise
     try {
-        return (await axios.post(githubUrl, { query: query }, { headers: oauth })).data.data.search.nodes
+        const res = (await axios.post(githubUrl, { query: query }, { headers: oauth }))
+        return res.data.data.search.nodes.filter.filter(i=>i.title===title)
     } catch (error) {
     }
     return []
 }
 
-const GitHubBackend = async ({ input, perspective, akismet }, req) => {    
+const GitHubBackend = async ({ input, perspective, akismet }, req) => {
     // Match /<username>/<repo>/ in the URL
     // TODO: Allow base64-encoded repo URL
     // const { pathname } = url.parse(req.url);
     // Trim trailing slashes to get GitHub repo
     const repo = REPO//trim(pathname, '/');
-    
+
     const allowedRepos = getAllowedRepos();
     if (allowedRepos !== '*' && allowedRepos.indexOf(repo) === -1) {
         throw createError(400, `Repo "${repo}" not allowed.`);
     }
-    const issueURL = `https://api.github.com/repos/${repo}/issues`;
-    const { body, title, extra, screenshotURL } = input;    
-    const issuesThatAlreadyExist = await checkIfTitleExists({ repo, body, token: GH_TOKEN })
-    // if (issuesThatAlreadyExist.length === 0) {
+    let issueURL = `https://api.github.com/repos/${repo}/issues`;
+    let { body, title, extra, screenshotURL } = input;
+    title = title || `${truncate(
+        body,
+        25
+    )}`;
+    const issuesThatAlreadyExist = await checkIfTitleExists({ repo, body, title, token: GH_TOKEN })
+    if (issuesThatAlreadyExist.length > 0) {
+        const issueNumber = issuesThatAlreadyExist[0].number
+        issueURL = `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments`;
+    }
     try {
         const { data } = await axios({
             headers: { "Authorization": `token ${GH_TOKEN}` },
@@ -185,16 +184,12 @@ const GitHubBackend = async ({ input, perspective, akismet }, req) => {
         });
         return data;
     } catch (err) {
-        
+
         const { status, data } = err.response;
-        console.log({repo,data});
+        console.log(err);
         throw createError(status, data.message, err);
     }
-    // }else {
-    // todo: add comment
-    //     const issueNumber = issuesThatAlreadyExist[0].number
 
-    // }
 };
 
 module.exports = microfeedback(GitHubBackend, {
